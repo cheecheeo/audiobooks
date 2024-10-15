@@ -16,7 +16,7 @@ import qualified System.Exit
 import qualified System.IO
 import qualified System.IO.Error
 import qualified System.FilePath
-import Path (Path, Dir, Abs, Rel, File, (</>))
+import Path (Path, Dir, Abs, File, (</>))
 import qualified Path
 import qualified Path.IO
 
