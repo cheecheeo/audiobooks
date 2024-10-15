@@ -33,7 +33,10 @@ data AudiobookI a where
   -- MakeM4bFromDir :: Path absOrRel File -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
   MakeM4a :: NonEmpty (Path Abs File) -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
   ListFiles :: Path absOrRel Dir -> AudiobookI [Path Abs File] -- list all the files in a directory
+  -- The distinction between these two operations may not be relevant, it might be worthwhile
+  -- to just use CopyFile only, see "Rename discussion" in the MakeM4a case of evalIO
   RenameFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookI Bool
+  CopyFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookI Bool
   -- UpgradeWithScoop :: AudiobookI ()
   -- UpgradeWithWinget :: AudiobookI ()
   GetYoutubeURL :: AudiobookI String
@@ -54,6 +57,9 @@ listFiles p = Data.List.sort <$> (singleton . ListFiles $ p)
 
 renameFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookP Bool
 renameFile fp1 = singleton . RenameFile fp1
+
+copyFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookP Bool
+copyFile fp1 = singleton . CopyFile fp1
 
 simpleAudiobookP :: AudiobookP FilePath
 simpleAudiobookP =
@@ -190,7 +196,8 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- ...ffmpeg -i ...Handel_-_messiah_-_44_hallelujah.ogg...Handel_-_messiah_-_44_hallelujah.m4a...
 -- ...ffmpeg -i ...NordwindSonne.wav...NordwindSonne.m4a...
 -- ...ffmpeg -i 'concat:...Columbia-dx1536-cax10357.m4a...Handel_-_messiah_-_02_comfort_ye.m4a...Handel_-_messiah_-_44_hallelujah.m4a...NordwindSonne.m4a... -c copy ...audio_files.m4a...
--- ...renameFile:renamePath:rename...does not exist...No such file or directory...
+-- ...audio_files.m4a...copyFile:atomicCopyFileContents:withReplacementFile:copyFileToHandle:withBinaryFile: does not exist...
+-- MakeM4a failed,...
 -- False
 evalIO :: AudiobookP a -> IO a
 evalIO = evalHS . view
@@ -213,13 +220,18 @@ evalIO = evalHS . view
             Data.Bool.bool
               (logError ("ffmpegAlacCommand failed: " ++ (show executedProcesses)) >> evalIO (is False))
               (do
-                -- concat the alac files into one m4a
-                -- TODO use tempfile for this command?
-                executedM4bCommandProcess <- mockRCPWEC (ffmpegM4bCommand files outfile) ""
+                -- create the alac file in the temporary directory
+                let tempOutfilename = tempDir </> (Path.filename outfile)
+                executedM4bCommandProcess <- mockRCPWEC (ffmpegM4bCommand files tempOutfilename) ""
+                -- move the alac file from the temporary directory to destination
+                -- Rename discussion. We need to copyFile rather than renameFile because the temporary
+                -- directory filesystem is often a different filesystem than the rest of the filesystem.
+                -- https://search.brave.com/search?q=unsupported+operation+(Invalid+cross-device+link+wsl&source=desktop
+                copySuccess <- evalIO $ copyFile tempOutfilename outfile
                 Data.Bool.bool
-                  (logError ("ffmpegM4bCommand failed: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
+                  (logError ("MakeM4a failed, executedM4bCommandProcess or copyFile: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
                   (evalIO (is True))
-                  (processSuccess executedM4bCommandProcess))
+                  (processSuccess executedM4bCommandProcess && copySuccess))
               (and . fmap processSuccess $ executedProcesses))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
@@ -228,6 +240,16 @@ evalIO = evalHS . view
         Data.Bool.bool
           (System.IO.Error.catchIOError
             (Path.IO.renameFile p1 p2
+              >> evalIO (is True))
+            (\e -> (logError .  show $ e)
+              >> evalIO (is False)))
+          (evalIO (is False))
+          p2Exists
+      CopyFile p1 p2 :>>= is -> do
+        p2Exists <- Path.IO.doesFileExist p2
+        Data.Bool.bool
+          (System.IO.Error.catchIOError
+            (Path.IO.copyFile p1 p2
               >> evalIO (is True))
             (\e -> (logError .  show $ e)
               >> evalIO (is False)))
