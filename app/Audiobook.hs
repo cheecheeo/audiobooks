@@ -262,14 +262,37 @@ generateShell :: AudiobookP a -> (() -> (a, String))
 generateShell = undefined
 
 -- TODO:
+-- test to see if we even combine it first
+-- 
+-- write some unit tests and integration tests in hspec
+-- https://hspec.github.io/
+--
+-- TTS libraries to check out (in order)
+-- https://github.com/idiap/coqui-ai-TTS https://coqui-tts.readthedocs.io/en/stable/tutorial_for_nervous_beginners.html
+-- https://gspeech.io/
+-- https://cloud.google.com/text-to-speech
+-- 
+-- stat the directory, if it's a single file, rename accordingly, if it's multiple files return the directory
+-- then combine them into an audiobook
+-- algorithm - common prefix treat as Title (strip punctuation (non-letters)), common substrings treat as author, or just something to append to title
+-- example to write a test for:
+{-
+[nix-shell:~/packages/audiobooks]$ ll *m4a
+-rw-r--r-- 1 chee1 chee1 68313041 Mar  9  2024 'Christianity and Liberalism： Christ - J. Gresham Machen (Chapter 5 of 7) [14VVtubP08o].m4a'
+-rw-r--r-- 1 chee1 chee1 68559066 Aug 25 18:14 'Christianity and Liberalism： Doctrine - J. Gresham Machen (Chapter 2 of 7) [OOXcncVQRB4].m4a'
+-rw-r--r-- 1 chee1 chee1 26273734 Nov 24  2013 'Christianity and Liberalism： God and Man - J. Gresham Machen (Chapter 3 of 7) [hLvYFC8xWZ8].m4a'
+-rw-r--r-- 1 chee1 chee1 25828355 Mar 22  2014 'Christianity and Liberalism - J. Gresham Machen (Intro ⧸ Chapter 1 of 7) [z_rBPUFf6q0].m4a'
+-rw-r--r-- 1 chee1 chee1 77290163 Sep 10  2013 'Christianity and Liberalism： Salvation - J. Gresham Machen (Chapter 6 of 7) [ssAHVCeLaEs].m4a'
+-rw-r--r-- 1 chee1 chee1 18530350 Sep 13 06:05 'Christianity and Liberalism： The Bible - J. Gresham Machen (Chapter 4 of 7) [T-Jg-VYtX5Y].m4a'
+-rw-r--r-- 1 chee1 chee1 44284696 Apr  4  2024 'Christianity and Liberalism： The Church - J. Gresham Machen (Chapter 7 of 7) [99CP77eX9Wk].m4a'
+-}
+--
 -- CI with github
 -- command line interface
 -- download audiobooks from youtube: https://github.com/ytdl-org/youtube-dl?tab=readme-ov-file
 -- make a tempdir
 -- cd tempdir
 -- yt-dlp -f "ba" https://youtube.com/playlist?list=PL62C4D2D718F07779&si=drIVnM7aqSq7-Klg
--- stat the directory, if it's a single file, rename accordingly, if it's multiple files return the directory
--- then combine them into an audiobook
 -- convert text to audiobook. book: https://etc.usf.edu/lit2go/68/fairy-tales-and-other-traditional-stories/5085/the-golden-goose/
 -- windows text to voice bindings ^
 -- use playwright from Haskell/Operational
