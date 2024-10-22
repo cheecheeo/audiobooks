@@ -10,5 +10,7 @@ in
         [ cabal-install
           doctest
           ghcid
+          pkgs.ffmpeg-full
+          pkgs.yt-dlp
         ]);
   }
