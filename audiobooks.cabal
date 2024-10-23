@@ -69,7 +69,17 @@ executable audiobooks
     -- other-extensions:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base, http-conduit, bytestring, operational, path, path-io, process, exceptions, doctest, filepath
+    build-depends:
+        base,
+        http-conduit,
+        bytestring,
+        operational,
+        path,
+        path-io,
+        process,
+        exceptions,
+        doctest,
+        filepath,
     -- build-depends:    base ^>=4.17.2.1, http-conduit, bytestring
 
     -- Directories containing source files.
@@ -77,3 +87,18 @@ executable audiobooks
 
     -- Base language which the package is written in.
     default-language: Haskell2010
+
+test-suite spec
+    type: exitcode-stdio-1.0
+    main-is: Spec.hs
+    hs-source-dirs:
+      test
+    build-depends:
+      base,
+      hspec,
+      hspec-contrib,
+      QuickCheck,
+      HUnit,
+    other-modules: AudiobookSpec
+    default-language: Haskell2010
+    build-tool-depends: hspec-discover:hspec-discover == 2.*
