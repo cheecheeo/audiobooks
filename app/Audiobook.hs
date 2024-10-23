@@ -196,7 +196,7 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- ...ffmpeg -i ...Handel_-_messiah_-_44_hallelujah.ogg...Handel_-_messiah_-_44_hallelujah.m4a...
 -- ...ffmpeg -i ...NordwindSonne.wav...NordwindSonne.m4a...
 -- ...ffmpeg -i 'concat:...Columbia-dx1536-cax10357.m4a...Handel_-_messiah_-_02_comfort_ye.m4a...Handel_-_messiah_-_44_hallelujah.m4a...NordwindSonne.m4a... -c copy ...audio_files.m4a...
--- ...audio_files.m4a...copyFile:atomicCopyFileContents:withReplacementFile:copyFileToHandle:withBinaryFile: does not exist...
+-- ...audio_files.m4a...copyFile:atomicCopyFileContents:withReplacementFile:copyFileToHandle:...
 -- MakeM4a failed,...
 -- False
 evalIO :: AudiobookP a -> IO a
@@ -263,7 +263,7 @@ generateShell = undefined
 
 -- TODO:
 -- test to see if we even combine it first
--- 
+--
 -- write some unit tests and integration tests in hspec
 -- https://hspec.github.io/
 --
@@ -271,7 +271,7 @@ generateShell = undefined
 -- https://github.com/idiap/coqui-ai-TTS https://coqui-tts.readthedocs.io/en/stable/tutorial_for_nervous_beginners.html
 -- https://gspeech.io/
 -- https://cloud.google.com/text-to-speech
--- 
+--
 -- stat the directory, if it's a single file, rename accordingly, if it's multiple files return the directory
 -- then combine them into an audiobook
 -- algorithm - common prefix treat as Title (strip punctuation (non-letters)), common substrings treat as author, or just something to append to title
