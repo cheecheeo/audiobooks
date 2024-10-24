@@ -140,7 +140,7 @@ ffmpegM4bCommand alacFiles outfile = Process.shell processString
 data ProcessExitCode =
  ProcessExitCode {
     exitCode :: (System.Exit.ExitCode, String, String)
-  } deriving (Show)
+  } deriving (Eq, Show)
 
 -- | Call readCreateProcessWithExitCode on both processes, only if the first succeeds
 -- >>> let pwd = Process.shell "pwd"
@@ -262,6 +262,9 @@ generateShell :: AudiobookP a -> (() -> (a, String))
 generateShell = undefined
 
 -- TODO:
+--
+-- ./doctest.sh and cabal run give different results - why?
+--
 -- test to see if we even combine it first
 --
 -- write some unit tests and integration tests in hspec
