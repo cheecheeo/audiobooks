@@ -1,2 +1,2 @@
 #!/usr/bin/env bash
-cabal repl --with-compiler=doctest --build-depends=QuickCheck --build-depends=template-haskell
+cabal install doctest --ignore-project --overwrite-policy=always && cabal build && cabal repl --build-depends=QuickCheck --build-depends=template-haskell --with-compiler=doctest --repl-options='-w -Wdefault'
