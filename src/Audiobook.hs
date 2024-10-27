@@ -140,11 +140,6 @@ ffmpegM4bCommand alacFiles outfile = Process.shell processString
    -- ffmpeg -i "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3" -c copy output.mp3
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
--- >>> import Data.List.NonEmpty (NonEmpty(..))
--- >>> let infiles = do {infile1 <- Path.parseRelFile "./foo.m4a"; infile2 <- Path.parseRelFile "./bar.m4a"; return $ infile1 :| [infile2]}
--- >>> let outfile = Path.parseRelFile "./out.m4a"
--- >>> do {i <- infiles; o <- outfile; return . Process.cmdspec $ (ffmpegM4bCommand i o)}
--- ShellCommand "ffmpeg -i 'concat:\"foo.m4a\"|\"bar.m4a\"' -c copy \"out.m4a\""
 ffmpegConcatCommand :: NonEmpty (Path absOrRel File) -> Path absOrRel File -> CreateProcess
 ffmpegConcatCommand fs outfile = Process.shell processString
   where
@@ -230,13 +225,8 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- >>> audioFilesDirectory
 -- .../audio_files...
 -- >>> evalIO . makeM4bFromDir =<< audioFilesDirectory
--- ...ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Columbia-dx1536-cax10357.m4a...
--- ...ffmpeg -i ...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_02_comfort_ye.m4a...
--- ...ffmpeg -i ...Handel_-_messiah_-_44_hallelujah.ogg...Handel_-_messiah_-_44_hallelujah.m4a...
--- ...ffmpeg -i ...NordwindSonne.wav...NordwindSonne.m4a...
--- ...ffmpeg -i 'concat:...Columbia-dx1536-cax10357.m4a...Handel_-_messiah_-_02_comfort_ye.m4a...Handel_-_messiah_-_44_hallelujah.m4a...NordwindSonne.m4a... -c copy ...audio_files.m4a...
--- MakeM4a failed,...
--- False
+-- Running: CreateProcess {cmdspec = ShellCommand "ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav\" -filter_complex \"[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]\" -map \"[outa]\" ...audio_files.m4a...
+-- True
 evalIO :: AudiobookP a -> IO a
 evalIO = evalHS . view
   where
@@ -252,15 +242,11 @@ evalIO = evalHS . view
       MakeM4a infiles outfile :>>= is -> Path.IO.withSystemTempDir "AudiobookTempDir" (\tempDir -> do
         outFileM4aExists <- Path.IO.doesFileExist outfile
         Data.Bool.bool
-          (do -- convert each infile to alac
-            (files, processes) <- fmap NE.unzip . traverse (ffmpegAlacCommand tempDir) $ infiles
-            executedProcesses <- traverse (\process -> readCreateProcessWithExitCode process "") processes
-            Data.Bool.bool
-              (logError ("ffmpegAlacCommand failed: " ++ (show executedProcesses)) >> evalIO (is False))
               (do
                 -- create the alac file in the temporary directory
                 let tempOutfilename = tempDir </> (Path.filename outfile)
-                executedM4bCommandProcess <- readCreateProcessWithExitCode (ffmpegM4bCommand files tempOutfilename) ""
+                -- TODO rename this to concat command
+                executedM4bCommandProcess <- readCreateProcessWithExitCode (ffmpegConcatCommand infiles tempOutfilename) ""
                 Data.Bool.bool
                   (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
                   (do
@@ -274,7 +260,6 @@ evalIO = evalHS . view
                       (evalIO (is True))
                       (copySuccess))
                   (processSuccess executedM4bCommandProcess))
-              (and . fmap processSuccess $ executedProcesses))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
       RenameFile p1 p2 :>>= is -> do
