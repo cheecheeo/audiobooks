@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 # cabal repl --with-compiler=doctest
-ghcid --run --warnings
+./hspec.sh && ./doctest.sh && cabal run && rm -f audio_files.m4b
