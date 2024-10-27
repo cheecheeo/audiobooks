@@ -110,6 +110,8 @@ test-suite spec
       hspec-contrib,
       QuickCheck,
       HUnit,
+      path,
+      path-io,
       process,
       audiobooks,
     other-modules: AudiobookSpec

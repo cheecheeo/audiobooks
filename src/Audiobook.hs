@@ -1,10 +1,12 @@
 {-# LANGUAGE GADTs, LambdaCase, PartialTypeSignatures #-}
 module Audiobook where
 
+import Debug.Trace
+
 import qualified Data.Bool
 import qualified Data.List
-import qualified Data.Semigroup as Semigroup
-import Data.List.NonEmpty (NonEmpty)
+import qualified Data.Semigroup
+import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 -- import qualified Control.Exception as CException
 
@@ -118,7 +120,7 @@ ffmpegAlacCommand dir filename = do
 -- >>> intercalatishNonEmpty "|" x
 -- "hello|world|bar"
 intercalatishNonEmpty :: (Semigroup a) => a -> NonEmpty a -> a
-intercalatishNonEmpty x = Semigroup.sconcat . NE.intersperse x
+intercalatishNonEmpty x = Data.Semigroup.sconcat . NE.intersperse x
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
 -- TODO: The shell command may not need to be quoted???
@@ -136,6 +138,33 @@ ffmpegM4bCommand alacFiles outfile = Process.shell processString
                   (show outfile)]
    -- "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3"
    -- ffmpeg -i "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3" -c copy output.mp3
+
+-- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
+-- >>> import Data.List.NonEmpty (NonEmpty(..))
+-- >>> let infiles = do {infile1 <- Path.parseRelFile "./foo.m4a"; infile2 <- Path.parseRelFile "./bar.m4a"; return $ infile1 :| [infile2]}
+-- >>> let outfile = Path.parseRelFile "./out.m4a"
+-- >>> do {i <- infiles; o <- outfile; return . Process.cmdspec $ (ffmpegM4bCommand i o)}
+-- ShellCommand "ffmpeg -i 'concat:\"foo.m4a\"|\"bar.m4a\"' -c copy \"out.m4a\""
+ffmpegConcatCommand :: NonEmpty (Path absOrRel File) -> Path absOrRel File -> CreateProcess
+ffmpegConcatCommand fs outfile = Process.shell processString
+  where
+    filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (show f) ++ " ") $ fs
+    len = length fs
+    filterString1 = Data.Semigroup.sconcat . fmap (\n -> "[" ++ (show n) ++ ":0]") $ 0 :| [1 .. len-1]
+    filterString2 = "concat=n=" ++ (show len) ++ ":v=0:a=1[outa]\""
+    -- TODO: outfile must end in m4a to be a valid alac file
+    processString =
+      Data.Semigroup.sconcat
+       $ "ffmpeg " :|
+         [filesString,
+         "-filter_complex \"",
+         filterString1,
+         filterString2,
+         " -map \"[outa]\" -acodec alac ",
+         show outfile]
+-- better ffmpeg command:
+-- ffmpeg -i audio_files/Columbia-dx1536-cax10357.ogg -i audio_files/Handel_-_messiah_-_02_comfort_ye.ogg -i audio_files/Handel_-_messiah_-_44_hallelujah.ogg -i audio_files/NordwindSonne.wav -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
+-- -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
 
 data ProcessExitCode =
  ProcessExitCode {
@@ -168,6 +197,16 @@ mockRCPWEC cProc stdin = do
   putStrLn $ "I would execute: " ++ (show . Process.cmdspec $ cProc) ++ " with stdin: " ++ stdin
   pure . ProcessExitCode $ (System.Exit.ExitSuccess, "mock standard output", "mock standard error")
 
+-- | readCreateProcessWithExitCode wrapped with ProcessExitCode constructor
+-- >>> readCreateProcessWithExitCode (Process.shell "pwd") "test stdin"
+-- Running: CreateProcess...ShellCommand "pwd"...
+-- ProcessExitCode...ExitSuccess...audiobooks...
+readCreateProcessWithExitCode :: CreateProcess -> String -> IO ProcessExitCode
+-- readCreateProcessWithExitCode cProc stdin = ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
+readCreateProcessWithExitCode cProc stdin = do
+  logError $ "Running: " ++ (show cProc) ++ " with stdin: " ++ stdin
+  ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
+
 processSuccess :: ProcessExitCode -> Bool
 processSuccess = (\(ec, _, _) -> ec == System.Exit.ExitSuccess) . exitCode
 
@@ -196,7 +235,6 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- ...ffmpeg -i ...Handel_-_messiah_-_44_hallelujah.ogg...Handel_-_messiah_-_44_hallelujah.m4a...
 -- ...ffmpeg -i ...NordwindSonne.wav...NordwindSonne.m4a...
 -- ...ffmpeg -i 'concat:...Columbia-dx1536-cax10357.m4a...Handel_-_messiah_-_02_comfort_ye.m4a...Handel_-_messiah_-_44_hallelujah.m4a...NordwindSonne.m4a... -c copy ...audio_files.m4a...
--- ...audio_files.m4a...copyFile:atomicCopyFileContents:withReplacementFile:copyFileToHandle:...
 -- MakeM4a failed,...
 -- False
 evalIO :: AudiobookP a -> IO a
@@ -210,28 +248,32 @@ evalIO = evalHS . view
         (Path.IO.listDir fp >>= (\(dirs, files) ->
            if dirs /= []
              then (logError ("non-empty list of directories found in directory: " ++ show fp ++ " directories: " ++ show dirs) >> evalIO (is files))
-             else evalIO (is files))) -- ensure that fst of tuple is []
+             else evalIO (is files)))
       MakeM4a infiles outfile :>>= is -> Path.IO.withSystemTempDir "AudiobookTempDir" (\tempDir -> do
         outFileM4aExists <- Path.IO.doesFileExist outfile
-        Data.Bool.bool (do
-            -- convert each infile to alac
+        Data.Bool.bool
+          (do -- convert each infile to alac
             (files, processes) <- fmap NE.unzip . traverse (ffmpegAlacCommand tempDir) $ infiles
-            executedProcesses <- traverse (\process -> mockRCPWEC process "") processes
+            executedProcesses <- traverse (\process -> readCreateProcessWithExitCode process "") processes
             Data.Bool.bool
               (logError ("ffmpegAlacCommand failed: " ++ (show executedProcesses)) >> evalIO (is False))
               (do
                 -- create the alac file in the temporary directory
                 let tempOutfilename = tempDir </> (Path.filename outfile)
-                executedM4bCommandProcess <- mockRCPWEC (ffmpegM4bCommand files tempOutfilename) ""
-                -- move the alac file from the temporary directory to destination
-                -- Rename discussion. We need to copyFile rather than renameFile because the temporary
-                -- directory filesystem is often a different filesystem than the rest of the filesystem.
-                -- https://search.brave.com/search?q=unsupported+operation+(Invalid+cross-device+link+wsl&source=desktop
-                copySuccess <- evalIO $ copyFile tempOutfilename outfile
+                executedM4bCommandProcess <- readCreateProcessWithExitCode (ffmpegM4bCommand files tempOutfilename) ""
                 Data.Bool.bool
-                  (logError ("MakeM4a failed, executedM4bCommandProcess or copyFile: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
-                  (evalIO (is True))
-                  (processSuccess executedM4bCommandProcess && copySuccess))
+                  (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
+                  (do
+                    -- move the alac file from the temporary directory to destination
+                    -- Rename discussion. We need to copyFile rather than renameFile because the temporary
+                    -- directory filesystem is often a different filesystem than the rest of the filesystem.
+                    -- https://search.brave.com/search?q=unsupported+operation+(Invalid+cross-device+link+wsl&source=desktop
+                    copySuccess <- evalIO $ copyFile tempOutfilename outfile
+                    Data.Bool.bool
+                      (logError "MakeM4a failed, copyFile." >> evalIO (is False))
+                      (evalIO (is True))
+                      (copySuccess))
+                  (processSuccess executedM4bCommandProcess))
               (and . fmap processSuccess $ executedProcesses))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
@@ -263,6 +305,9 @@ generateShell = undefined
 
 -- TODO:
 --
+-- better ffmpeg command:
+-- ffmpeg -i audio_files/Columbia-dx1536-cax10357.ogg -i audio_files/Handel_-_messiah_-_02_comfort_ye.ogg -i audio_files/Handel_-_messiah_-_44_hallelujah.ogg -i audio_files/NordwindSonne.wav -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
+--
 -- ./doctest.sh and cabal run give different results - why?
 --
 -- test to see if we even combine it first
@@ -293,6 +338,7 @@ generateShell = undefined
 -- CI with github
 -- command line interface
 -- download audiobooks from youtube: https://github.com/ytdl-org/youtube-dl?tab=readme-ov-file
+-- more complicated download from websites: https://playwright.dev/
 -- make a tempdir
 -- cd tempdir
 -- yt-dlp -f "ba" https://youtube.com/playlist?list=PL62C4D2D718F07779&si=drIVnM7aqSq7-Klg
