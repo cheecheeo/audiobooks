@@ -252,11 +252,10 @@ evalIO = evalHS . view
               (do
                 -- create the alac file in the temporary directory
                 let tempOutfilename = tempDir </> (Path.filename outfile)
-                -- TODO rename this to concat command
                 ffmpegCreateProcess <- ffmpegConcatCommand infiles tempOutfilename
-                executedM4bCommandProcess <- readCreateProcessWithExitCode ffmpegCreateProcess ""
+                executedFfmpegConcat <- readCreateProcessWithExitCode ffmpegCreateProcess ""
                 Data.Bool.bool
-                  (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
+                  (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedFfmpegConcat)) >> evalIO (is False))
                   (do
                     -- move the alac file from the temporary directory to destination
                     -- Rename discussion. We need to copyFile rather than renameFile because the temporary
@@ -267,7 +266,7 @@ evalIO = evalHS . view
                       (logError "MakeM4a failed, copyFile." >> evalIO (is False))
                       (evalIO (is True))
                       (copySuccess))
-                  (processSuccess executedM4bCommandProcess))
+                  (processSuccess executedFfmpegConcat))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
       RenameFile p1 p2 :>>= is -> do
