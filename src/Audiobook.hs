@@ -297,11 +297,6 @@ generateShell = undefined
 
 -- TODO:
 --
--- better ffmpeg command:
--- ffmpeg -i audio_files/Columbia-dx1536-cax10357.ogg -i audio_files/Handel_-_messiah_-_02_comfort_ye.ogg -i audio_files/Handel_-_messiah_-_44_hallelujah.ogg -i audio_files/NordwindSonne.wav -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
---
--- ./doctest.sh and cabal run give different results - why?
---
 -- test to see if we even combine it first
 --
 -- write some unit tests and integration tests in hspec
