@@ -51,8 +51,9 @@ getYoutubeURL = singleton GetYoutubeURL
 downloadFromYoutube :: String -> AudiobookP FilePath
 downloadFromYoutube = singleton . DownloadFromYoutube
 
-makeM4a :: NonEmpty (Path Abs File) -> Path Abs File -> AudiobookP Bool
-makeM4a infiles = singleton . MakeM4a infiles
+makeM4a :: (MonadThrow m) => NonEmpty (Path Abs File) -> Path Abs File -> m (AudiobookP Bool)
+makeM4a infiles outfile =
+  pure . singleton . MakeM4a infiles =<< (Path.replaceExtension ".m4a" outfile)
 
 listFiles :: Path absOrRel Dir -> AudiobookP [Path Abs File]
 listFiles p = Data.List.sort <$> (singleton . ListFiles $ p)
@@ -77,14 +78,19 @@ makeM4bFromDir dir = do
       maybe
         (pure False)
         (\fs -> do
-          makeM4aSuccess <- makeM4a fs filename
-          Data.Bool.bool
+          let makeM4aSuccessMaybe = makeM4a fs filename
+          maybe
             (pure False)
-            (maybe
-              (pure False)
-              (renameFile filename)
-              (Path.replaceExtension ".m4b" filename))
-            makeM4aSuccess) . NE.nonEmpty $ files) . filenameWithExtensionFromDir dir $ ".m4a"
+            (\makeM4aSuccessA -> do
+              makeM4aSuccess <- makeM4aSuccessA
+              Data.Bool.bool
+                (pure False)
+                (maybe
+                  (pure False)
+                  (renameFile filename)
+                  (Path.replaceExtension ".m4b" filename))
+                makeM4aSuccess)
+            makeM4aSuccessMaybe). NE.nonEmpty $ files) . filenameWithExtensionFromDir dir $ ".m4a"
 
 -- | Drop the trailing path separator "/" on Unix from a Path
 -- >>> dropTrailingPathSeparator =<< (Path.parseRelDir "foo/bar")

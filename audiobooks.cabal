@@ -110,6 +110,7 @@ test-suite spec
       hspec-contrib,
       QuickCheck,
       HUnit,
+      operational,
       path,
       path-io,
       process,
