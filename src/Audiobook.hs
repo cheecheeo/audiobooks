@@ -255,7 +255,7 @@ evalIO = evalHS . view
                 ffmpegCreateProcess <- ffmpegConcatCommand infiles tempOutfilename
                 executedFfmpegConcat <- readCreateProcessWithExitCode ffmpegCreateProcess ""
                 Data.Bool.bool
-                  (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedFfmpegConcat)) >> evalIO (is False))
+                  (logError ("MakeM4a failed, executedFfmpegConcat: " ++ (show executedFfmpegConcat)) >> evalIO (is False))
                   (do
                     -- move the alac file from the temporary directory to destination
                     -- Rename discussion. We need to copyFile rather than renameFile because the temporary
