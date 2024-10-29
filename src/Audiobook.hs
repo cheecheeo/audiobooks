@@ -146,15 +146,16 @@ ffmpegM4bCommand alacFiles outfile = Process.shell processString
    -- ffmpeg -i "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3" -c copy output.mp3
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
-ffmpegConcatCommand :: NonEmpty (Path absOrRel File) -> Path absOrRel File -> CreateProcess
-ffmpegConcatCommand fs outfile = Process.shell processString
+ffmpegConcatCommand ::
+  (MonadThrow m) => NonEmpty (Path absOrRel File) -> Path absOrRel File -> m CreateProcess
+ffmpegConcatCommand fs outfile =
+  Process.shell . processString <$> Path.replaceExtension ".m4a" outfile
   where
     filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (show f) ++ " ") $ fs
     len = length fs
     filterString1 = Data.Semigroup.sconcat . fmap (\n -> "[" ++ (show n) ++ ":0]") $ 0 :| [1 .. len-1]
     filterString2 = "concat=n=" ++ (show len) ++ ":v=0:a=1[outa]\""
-    -- TODO: outfile must end in m4a to be a valid alac file
-    processString =
+    processString ofile =
       Data.Semigroup.sconcat
        $ "ffmpeg " :|
          [filesString,
@@ -162,7 +163,7 @@ ffmpegConcatCommand fs outfile = Process.shell processString
          filterString1,
          filterString2,
          " -map \"[outa]\" -acodec alac ",
-         show outfile]
+         show ofile]
 -- better ffmpeg command:
 -- ffmpeg -i audio_files/Columbia-dx1536-cax10357.ogg -i audio_files/Handel_-_messiah_-_02_comfort_ye.ogg -i audio_files/Handel_-_messiah_-_44_hallelujah.ogg -i audio_files/NordwindSonne.wav -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
 -- -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
@@ -252,7 +253,8 @@ evalIO = evalHS . view
                 -- create the alac file in the temporary directory
                 let tempOutfilename = tempDir </> (Path.filename outfile)
                 -- TODO rename this to concat command
-                executedM4bCommandProcess <- readCreateProcessWithExitCode (ffmpegConcatCommand infiles tempOutfilename) ""
+                ffmpegCreateProcess <- ffmpegConcatCommand infiles tempOutfilename
+                executedM4bCommandProcess <- readCreateProcessWithExitCode ffmpegCreateProcess ""
                 Data.Bool.bool
                   (logError ("MakeM4a failed, executedM4bCommandProcess: " ++ (show executedM4bCommandProcess)) >> evalIO (is False))
                   (do
