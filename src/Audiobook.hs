@@ -131,7 +131,6 @@ intercalatishNonEmpty :: (Semigroup a) => a -> NonEmpty a -> a
 intercalatishNonEmpty x = Data.Semigroup.sconcat . NE.intersperse x
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
--- TODO: The shell command may not need to be quoted???
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> let infiles = do {infile1 <- Path.parseRelFile "./foo.m4a"; infile2 <- Path.parseRelFile "./bar.m4a"; return $ infile1 :| [infile2]}
 -- >>> let outfile = Path.parseRelFile "./out.m4a"
@@ -140,10 +139,11 @@ intercalatishNonEmpty x = Data.Semigroup.sconcat . NE.intersperse x
 ffmpegM4bCommand :: NonEmpty (Path absOrRel File) -> Path absOrRel File -> CreateProcess
 ffmpegM4bCommand alacFiles outfile = Process.shell processString
   where processString =
-          concat ["ffmpeg -i 'concat:",
-                  (intercalatishNonEmpty "|" . fmap show $ alacFiles),
-                  "\' -c copy ",
-                  (show outfile)]
+          mconcat [ "ffmpeg -i 'concat:"
+                  , intercalatishNonEmpty "|" . fmap show $ alacFiles
+                  , "\' -c copy "
+                  , show outfile
+                  ]
    -- "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3"
    -- ffmpeg -i "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3" -c copy output.mp3
 
