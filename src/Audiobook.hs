@@ -14,7 +14,7 @@ import qualified Data.Text.Lazy
 -- import qualified Control.Monad as CMonad
 import Control.Monad.Catch (MonadThrow)
 import System.Process (CreateProcess)
-import qualified System.Process as Process
+import qualified System.Process
 import qualified System.Exit
 import qualified System.IO
 import qualified System.IO.Error
@@ -120,7 +120,7 @@ ffmpegAlacCommand :: (MonadThrow m) => Path Abs Dir -> Path absOrRel File -> m (
 ffmpegAlacCommand dir filename = do
   m4aFile <- Path.replaceExtension ".m4a" (Path.filename filename)
   let filenameWithDir = dir </> m4aFile
-  return (filenameWithDir, Process.shell . mconcat $ ["ffmpeg -i ", show filename, " -acodec alac ", show filenameWithDir])
+  return (filenameWithDir, System.Process.shell . mconcat $ ["ffmpeg -i ", show filename, " -acodec alac ", show filenameWithDir])
 
 -- | Interacalate for NonEmpty.
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
@@ -134,10 +134,10 @@ intercalatishNonEmpty x = Data.Semigroup.sconcat . NE.intersperse x
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
 -- >>> let infiles = do {infile1 <- Path.parseRelFile "./foo.m4a"; infile2 <- Path.parseRelFile "./bar.m4a"; return $ infile1 :| [infile2]}
 -- >>> let outfile = Path.parseRelFile "./out.m4a"
--- >>> do {i <- infiles; o <- outfile; return . Process.cmdspec $ (ffmpegM4bCommand i o)}
+-- >>> do {i <- infiles; o <- outfile; return . System.Process.cmdspec $ (ffmpegM4bCommand i o)}
 -- ShellCommand "ffmpeg -i 'concat:\"foo.m4a\"|\"bar.m4a\"' -c copy \"out.m4a\""
 ffmpegM4bCommand :: NonEmpty (Path absOrRel File) -> Path absOrRel File -> CreateProcess
-ffmpegM4bCommand alacFiles outfile = Process.shell processString
+ffmpegM4bCommand alacFiles outfile = System.Process.shell processString
   where processString =
           mconcat [ "ffmpeg -i 'concat:"
                   , intercalatishNonEmpty "|" . fmap show $ alacFiles
@@ -156,7 +156,7 @@ ushow = Data.Text.Lazy.unpack . Text.Pretty.Simple.pShowNoColor
 ffmpegConcatCommand ::
   (MonadThrow m) => NonEmpty (Path absOrRel File) -> Path absOrRel File -> m CreateProcess
 ffmpegConcatCommand fs outfile =
-  Process.shell . processString <$> Path.replaceExtension ".m4a" outfile
+  System.Process.shell . processString <$> Path.replaceExtension ".m4a" outfile
   where
     filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (ushow $ f) ++ " ") $ fs
     len = length fs
@@ -181,8 +181,8 @@ data ProcessExitCode =
   } deriving (Eq, Show)
 
 -- | Call readCreateProcessWithExitCode on both processes, only if the first succeeds
--- >>> let pwd = Process.shell "pwd"
--- >>> let date = Process.shell "date"
+-- >>> let pwd = System.Process.shell "pwd"
+-- >>> let date = System.Process.shell "date"
 -- >>> andThenProcess pwd date
 -- Right (ProcessExitCode ...ExitSuccess...ProcessExitCode ...ExitSuccess...
 andThenProcess
@@ -190,24 +190,24 @@ andThenProcess
      CreateProcess ->
      IO (Either ProcessExitCode (ProcessExitCode, ProcessExitCode))
 andThenProcess p1 p2 = do
-  p1PEC@(exCode, _, _) <- Process.readCreateProcessWithExitCode p1 ""
+  p1PEC@(exCode, _, _) <- System.Process.readCreateProcessWithExitCode p1 ""
   Data.Bool.bool
     (pure . Left . ProcessExitCode $ p1PEC)
     ((\p2PEC -> pure . Right $ (ProcessExitCode p1PEC, ProcessExitCode p2PEC))
-      =<< Process.readCreateProcessWithExitCode p2 "")
+      =<< System.Process.readCreateProcessWithExitCode p2 "")
     (exCode == System.Exit.ExitSuccess)
 
 -- | Mock readCreateProcessWithExitCode
--- >>> mockRCPWEC (Process.shell "ffmpeg -i foo.mp3") "test stdin"
+-- >>> mockRCPWEC (System.Process.shell "ffmpeg -i foo.mp3") "test stdin"
 -- I would execute: ShellCommand "ffmpeg -i foo.mp3" with stdin: test stdin
 -- ProcessExitCode {exitCode = (ExitSuccess,"mock standard output","mock standard error")}
 mockRCPWEC :: CreateProcess -> String -> IO ProcessExitCode
 mockRCPWEC cProc stdin = do
-  putStrLn . mconcat $ ["I would execute: ", show (Process.cmdspec cProc), " with stdin: ", stdin]
+  putStrLn . mconcat $ ["I would execute: ", show (System.Process.cmdspec cProc), " with stdin: ", stdin]
   pure . ProcessExitCode $ (System.Exit.ExitSuccess, "mock standard output", "mock standard error")
 
 -- | readCreateProcessWithExitCode wrapped with ProcessExitCode constructor
--- >>> readCreateProcessWithExitCode (Process.shell "pwd") "test stdin"
+-- >>> readCreateProcessWithExitCode (System.Process.shell "pwd") "test stdin"
 -- Running: CreateProcess
 -- ...ShellCommand "pwd"...
 -- ...
@@ -216,7 +216,7 @@ readCreateProcessWithExitCode :: CreateProcess -> String -> IO ProcessExitCode
 -- readCreateProcessWithExitCode cProc stdin = ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
 readCreateProcessWithExitCode cProc stdin = do
   logError . mconcat $ ["Running: ", ushow cProc, " with stdin: ", stdin]
-  ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
+  ProcessExitCode <$> System.Process.readCreateProcessWithExitCode cProc stdin
 
 processSuccess :: ProcessExitCode -> Bool
 processSuccess = (\(ec, _, _) -> ec == System.Exit.ExitSuccess) . exitCode
@@ -227,7 +227,7 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- makem4b test case
 -- | Evaluate an AudiobookP (program) in Haskell
 -- >>> import Path ((</>))
--- >>> System.Process.readCreateProcessWithExitCode (Process.shell "ghci -e '40 + 2'") ""
+-- >>> System.Process.readCreateProcessWithExitCode (System.Process.shell "ghci -e '40 + 2'") ""
 -- (ExitSuccess,"42\n","")
 -- >>> evalIO . listFiles =<< (Path.parseRelDir "./audio_files")
 -- ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...NordwindSonne.wav...
@@ -308,10 +308,7 @@ generateShell = undefined
 
 -- TODO:
 --
--- test to see if we even combine it first
---
--- write some unit tests and integration tests in hspec
--- https://hspec.github.io/
+-- see if i can get chapters or whatever in ffmpegConcatCommand
 --
 -- TTS libraries to check out (in order)
 -- https://github.com/idiap/coqui-ai-TTS https://coqui-tts.readthedocs.io/en/stable/tutorial_for_nervous_beginners.html
