@@ -7,7 +7,7 @@ import qualified Data.Bool
 import qualified Data.List
 import qualified Data.Semigroup
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE
+import qualified Data.List.NonEmpty
 import qualified Data.Text.Lazy
 -- import qualified Control.Exception as CException
 
@@ -92,7 +92,7 @@ makeM4bFromDir dir = do
                   (renameFile filename)
                   (Path.replaceExtension ".m4b" filename))
                 makeM4aSuccess)
-            makeM4aSuccessMaybe). NE.nonEmpty $ files) . filenameWithExtensionFromDir dir $ ".m4a"
+            makeM4aSuccessMaybe). Data.List.NonEmpty.nonEmpty $ files) . filenameWithExtensionFromDir dir $ ".m4a"
 
 -- | Drop the trailing path separator "/" on Unix from a Path
 -- >>> dropTrailingPathSeparator =<< (Path.parseRelDir "foo/bar")
@@ -128,7 +128,7 @@ ffmpegAlacCommand dir filename = do
 -- >>> intercalatishNonEmpty "|" x
 -- "hello|world|bar"
 intercalatishNonEmpty :: (Semigroup a) => a -> NonEmpty a -> a
-intercalatishNonEmpty x = Data.Semigroup.sconcat . NE.intersperse x
+intercalatishNonEmpty x = Data.Semigroup.sconcat . Data.List.NonEmpty.intersperse x
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
