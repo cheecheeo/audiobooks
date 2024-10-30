@@ -111,10 +111,14 @@ spec = do
   describe "makeM4bFromDir" $ do
     it "can make a file from ./audio_files" $ do
       audioFilesDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
-      (evalIO . makeM4bFromDir $ audioFilesDirectory) `shouldReturn` True
+      makeM4bSuccess <- evalIO . makeM4bFromDir $ audioFilesDirectory
+      Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_files.m4b"))
+      makeM4bSuccess `shouldBe` True
     it "can make a file from ./audio_files/Handel_-_messiah_-_44_hallelujah.ogg" $ do
       audioFileDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_file")
-      (evalIO . makeM4bFromDir $ audioFileDirectory) `shouldReturn` True
+      makeM4bSuccess <- evalIO . makeM4bFromDir $ audioFileDirectory
+      Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_file.m4b"))
+      makeM4bSuccess `shouldBe` True
 
   describe "andThenProcess" $ do
     it "can run pwd then date" $ do
