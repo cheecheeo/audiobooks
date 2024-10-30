@@ -8,6 +8,7 @@ import qualified Data.List
 import qualified Data.Semigroup
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
+import qualified Data.Text.Lazy
 -- import qualified Control.Exception as CException
 
 -- import qualified Control.Monad as CMonad
@@ -18,6 +19,7 @@ import qualified System.Exit
 import qualified System.IO
 import qualified System.IO.Error
 import qualified System.FilePath
+import qualified Text.Pretty.Simple
 import Path (Path, Dir, Abs, File, (</>))
 import qualified Path
 import qualified Path.IO
@@ -145,13 +147,18 @@ ffmpegM4bCommand alacFiles outfile = Process.shell processString
    -- "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3"
    -- ffmpeg -i "concat:input/Bible/Crossway/ESV-Audio-Bible/file1.mp3|input/Bible/Crossway/ESV-Audio-Bible/file2.mp3|input/Bible/Crossway/ESV-Audio-Bible/file3.mp3" -c copy output.mp3
 
+-- | `show` strings with unescaped unicode. See: https://stackoverflow.com/q/79139282/1019205 for a question
+-- as to why this function is necessary.
+ushow :: (Show a) => a -> String
+ushow = Data.Text.Lazy.unpack . Text.Pretty.Simple.pShowNoColor
+
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
 ffmpegConcatCommand ::
   (MonadThrow m) => NonEmpty (Path absOrRel File) -> Path absOrRel File -> m CreateProcess
 ffmpegConcatCommand fs outfile =
   Process.shell . processString <$> Path.replaceExtension ".m4a" outfile
   where
-    filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (show f) ++ " ") $ fs
+    filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (ushow $ f) ++ " ") $ fs
     len = length fs
     filterString1 = Data.Semigroup.sconcat . fmap (\n -> "[" ++ (show n) ++ ":0]") $ 0 :| [1 .. len-1]
     filterString2 = "concat=n=" ++ (show len) ++ ":v=0:a=1[outa]\""
@@ -201,12 +208,14 @@ mockRCPWEC cProc stdin = do
 
 -- | readCreateProcessWithExitCode wrapped with ProcessExitCode constructor
 -- >>> readCreateProcessWithExitCode (Process.shell "pwd") "test stdin"
--- Running: CreateProcess...ShellCommand "pwd"...
+-- Running: CreateProcess
+-- ...ShellCommand "pwd"...
+-- ...
 -- ProcessExitCode...ExitSuccess...audiobooks...
 readCreateProcessWithExitCode :: CreateProcess -> String -> IO ProcessExitCode
 -- readCreateProcessWithExitCode cProc stdin = ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
 readCreateProcessWithExitCode cProc stdin = do
-  logError $ "Running: " ++ (show cProc) ++ " with stdin: " ++ stdin
+  logError $ "Running: " ++ (ushow cProc) ++ " with stdin: " ++ stdin
   ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
 
 processSuccess :: ProcessExitCode -> Bool
@@ -232,7 +241,9 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- >>> audioFilesDirectory
 -- .../audio_files...
 -- >>> evalIO . makeM4bFromDir =<< audioFilesDirectory
--- Running: CreateProcess {cmdspec = ShellCommand "ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav\" -filter_complex \"[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]\" -map \"[outa]\" ...audio_files.m4a...
+-- Running: CreateProcess
+-- ... { cmdspec = ShellCommand "ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav" -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" ...audio_files.m4a...
+-- ...
 -- True
 evalIO :: AudiobookP a -> IO a
 evalIO = evalHS . view

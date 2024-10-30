@@ -62,8 +62,10 @@ library
                          , filepath
                          , path
                          , path-io
+                         , pretty-simple
                          , process
                          , operational
+                         , text
     default-language:    Haskell2010
 
 executable audiobooks
@@ -81,6 +83,7 @@ executable audiobooks
 
     -- Other library packages from which modules are imported.
     build-depends:
+        audiobooks,
         base,
         http-conduit,
         bytestring,
@@ -113,8 +116,10 @@ test-suite spec
       operational,
       path,
       path-io,
-      process,
-      audiobooks,
+      pretty-simple
+      , process
+      , text
+      , audiobooks,
     other-modules: AudiobookSpec
     default-language: Haskell2010
     build-tool-depends: hspec-discover:hspec-discover == 2.*
