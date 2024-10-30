@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -x
 # cabal repl --with-compiler=doctest
-./hspec.sh && ./doctest.sh && cabal run && rm -f audio_files.m4b
+./hspec.sh && ./doctest.sh && rm -f audio_files.m4b
