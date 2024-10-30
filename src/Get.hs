@@ -10,8 +10,8 @@ module Get where
 -- writing http://www.example.com to ./file.mp3
 downloadFile :: String -> FilePath -> IO ()
 downloadFile url fpath = do
-  putStrLn $ "inside downloadFile. url: " ++ url ++ " fpath: " ++ fpath
+  putStrLn . mconcat $ ["inside downloadFile. url: ", url, " fpath: ", fpath]
   -- TODO uncomment these two commented lines
   -- response <- simpleHttp url
-  putStrLn $ "writing " ++ url ++ " to " ++ fpath
+  putStrLn . mconcat $ ["writing ", url, " to ", fpath]
   -- LBS.writeFile fpath response

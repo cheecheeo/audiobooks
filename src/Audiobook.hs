@@ -120,7 +120,7 @@ ffmpegAlacCommand :: (MonadThrow m) => Path Abs Dir -> Path absOrRel File -> m (
 ffmpegAlacCommand dir filename = do
   m4aFile <- Path.replaceExtension ".m4a" (Path.filename filename)
   let filenameWithDir = dir </> m4aFile
-  return (filenameWithDir, Process.shell ("ffmpeg -i " ++ show filename ++ " -acodec alac " ++ show filenameWithDir))
+  return (filenameWithDir, Process.shell . mconcat $ ["ffmpeg -i ", show filename, " -acodec alac ", show filenameWithDir])
 
 -- | Interacalate for NonEmpty.
 -- >>> import Data.List.NonEmpty (NonEmpty(..))
@@ -203,7 +203,7 @@ andThenProcess p1 p2 = do
 -- ProcessExitCode {exitCode = (ExitSuccess,"mock standard output","mock standard error")}
 mockRCPWEC :: CreateProcess -> String -> IO ProcessExitCode
 mockRCPWEC cProc stdin = do
-  putStrLn $ "I would execute: " ++ (show . Process.cmdspec $ cProc) ++ " with stdin: " ++ stdin
+  putStrLn . mconcat $ ["I would execute: ", show (Process.cmdspec cProc), " with stdin: ", stdin]
   pure . ProcessExitCode $ (System.Exit.ExitSuccess, "mock standard output", "mock standard error")
 
 -- | readCreateProcessWithExitCode wrapped with ProcessExitCode constructor
@@ -215,7 +215,7 @@ mockRCPWEC cProc stdin = do
 readCreateProcessWithExitCode :: CreateProcess -> String -> IO ProcessExitCode
 -- readCreateProcessWithExitCode cProc stdin = ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
 readCreateProcessWithExitCode cProc stdin = do
-  logError $ "Running: " ++ (ushow cProc) ++ " with stdin: " ++ stdin
+  logError . mconcat $ ["Running: ", ushow cProc, " with stdin: ", stdin]
   ProcessExitCode <$> Process.readCreateProcessWithExitCode cProc stdin
 
 processSuccess :: ProcessExitCode -> Bool
@@ -255,7 +255,7 @@ evalIO = evalHS . view
       ListFiles fp :>>= is ->
         (Path.IO.listDir fp >>= (\(dirs, files) ->
            if dirs /= []
-             then (logError ("non-empty list of directories found in directory: " ++ show fp ++ " directories: " ++ show dirs) >> evalIO (is files))
+             then (logError . mconcat $ ["non-empty list of directories found in directory: ", show fp, " directories: ", show dirs]) >> evalIO (is files)
              else evalIO (is files)))
       MakeM4a infiles outfile :>>= is -> Path.IO.withSystemTempDir "AudiobookTempDir" (\tempDir -> do
         outFileM4aExists <- Path.IO.doesFileExist outfile
