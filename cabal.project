@@ -1,0 +1,6 @@
+packages:
+  audiobooks.cabal
+
+package audiobooks
+  ghc-options: -Werror
+  tests: True
