@@ -31,15 +31,18 @@ import Control.Monad.Operational
       ProgramView,
       ProgramViewT(Return, (:>>=)) )
 
+data Codec = Alac | Flac
+
 type AudiobookP a = Program AudiobookI a
 data AudiobookI a where
   DownloadFromYoutube :: String -> AudiobookI FilePath -- URL and either a file of the download or a directory of the download
   -- MakeM4bFromDir :: Path absOrRel File -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
-  MakeM4a :: NonEmpty (Path Abs File) -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
+  -- TODO rename to MakeAudiobook
+  MakeM4a :: Codec -> NonEmpty (Path Abs File) -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
   ListFiles :: Path absOrRel Dir -> AudiobookI [Path Abs File] -- list all the files in a directory
   -- The distinction between these two operations may not be relevant, it might be worthwhile
   -- to just use CopyFile only, see "Rename discussion" in the MakeM4a case of evalIO
-  RenameFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookI Bool
+  RenameFile :: Path absOrRel File -> Path absOrRel File -> AudiobookI Bool
   CopyFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookI Bool
   -- UpgradeWithScoop :: AudiobookI ()
   -- UpgradeWithWinget :: AudiobookI ()
@@ -47,20 +50,30 @@ data AudiobookI a where
   GetAudioDirectory :: AudiobookI (NonEmpty String)
   GetDirectory :: AudiobookI FilePath
 
+-- | Get the codec string and extension for the given codec
+-- >>> getCodecStringAndExtension Alac
+-- ("-acodec alac",".m4a")
+-- >>> getCodecStringAndExtension Flac
+-- ("-acodec flac",".flac")
+getCodecStringAndExtension :: Codec -> (String, String)
+getCodecStringAndExtension = \case
+  Alac -> ("-acodec alac", ".m4a")
+  Flac -> ("-acodec flac", ".flac")
+
 getYoutubeURL :: AudiobookP String
 getYoutubeURL = singleton GetYoutubeURL
 
 downloadFromYoutube :: String -> AudiobookP FilePath
 downloadFromYoutube = singleton . DownloadFromYoutube
 
-makeM4a :: (MonadThrow m) => NonEmpty (Path Abs File) -> Path Abs File -> m (AudiobookP Bool)
-makeM4a infiles outfile =
-  pure . singleton . MakeM4a infiles =<< (Path.replaceExtension ".m4a" outfile)
+makeM4a :: (MonadThrow m) => Codec -> NonEmpty (Path Abs File) -> Path Abs File -> m (AudiobookP Bool)
+makeM4a codec infiles outfile =
+  pure . singleton . MakeM4a codec infiles =<< (Path.replaceExtension (snd . getCodecStringAndExtension $ codec) outfile)
 
 listFiles :: Path absOrRel Dir -> AudiobookP [Path Abs File]
 listFiles p = Data.List.sort <$> (singleton . ListFiles $ p)
 
-renameFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookP Bool
+renameFile :: Path absOrRel File -> Path absOrRel File -> AudiobookP Bool
 renameFile fp1 = singleton . RenameFile fp1
 
 copyFile :: Path absOrRel1 File -> Path absOrRel2 File -> AudiobookP Bool
@@ -71,8 +84,8 @@ simpleAudiobookP =
   do url <- getYoutubeURL
      downloadFromYoutube url
 
-makeM4bFromDir :: Path Abs Dir -> AudiobookP Bool
-makeM4bFromDir dir = do
+makeAudiobookFromDir :: Codec -> Path Abs Dir -> AudiobookP Bool
+makeAudiobookFromDir codec dir = do
   files <- listFiles dir
   maybe
     (pure False)
@@ -80,7 +93,7 @@ makeM4bFromDir dir = do
       maybe
         (pure False)
         (\fs -> do
-          let makeM4aSuccessMaybe = makeM4a fs filename
+          let makeM4aSuccessMaybe = makeM4a codec fs filename
           maybe
             (pure False)
             (\makeM4aSuccessA -> do
@@ -90,9 +103,13 @@ makeM4bFromDir dir = do
                 (maybe
                   (pure False)
                   (renameFile filename)
-                  (Path.replaceExtension ".m4b" filename))
+                  (Path.replaceExtension finalFileExtension filename))
                 makeM4aSuccess)
-            makeM4aSuccessMaybe). Data.List.NonEmpty.nonEmpty $ files) . filenameWithExtensionFromDir dir $ ".m4a"
+            makeM4aSuccessMaybe). Data.List.NonEmpty.nonEmpty $ files) . filenameWithExtensionFromDir dir $ initialFileExtension
+  where
+    (initialFileExtension, finalFileExtension) = case codec of
+      Alac -> (".m4a", ".m4b")
+      Flac -> (".flac", ".flac")
 
 -- | Drop the trailing path separator "/" on Unix from a Path
 -- >>> dropTrailingPathSeparator =<< (Path.parseRelDir "foo/bar")
@@ -154,10 +171,11 @@ ushow = Data.Text.Lazy.unpack . Text.Pretty.Simple.pShowNoColor
 
 -- | Take a NonEmpty list of alac files and create an ffmpeg CreateProcess to combine them all into one file.
 ffmpegConcatCommand ::
-  (MonadThrow m) => NonEmpty (Path absOrRel File) -> Path absOrRel File -> m CreateProcess
-ffmpegConcatCommand fs outfile =
-  System.Process.shell . processString <$> Path.replaceExtension ".m4a" outfile
+  (MonadThrow m) => Codec -> NonEmpty (Path absOrRel File) -> Path absOrRel File -> m CreateProcess
+ffmpegConcatCommand codec fs outfile =
+  System.Process.shell . processString <$> Path.replaceExtension extension outfile
   where
+    (codecString, extension) = getCodecStringAndExtension codec
     filesString = Data.Semigroup.sconcat . fmap (\f -> "-i " ++ (ushow $ f) ++ " ") $ fs
     len = length fs
     filterString1 = Data.Semigroup.sconcat . fmap (\n -> "[" ++ (show n) ++ ":0]") $ 0 :| [1 .. len-1]
@@ -169,7 +187,9 @@ ffmpegConcatCommand fs outfile =
          "-filter_complex \"",
          filterString1,
          filterString2,
-         " -map \"[outa]\" -acodec alac ",
+         " -map \"[outa]\" ",
+         codecString,
+         " ",
          show ofile]
 -- better ffmpeg command:
 -- ffmpeg -i audio_files/Columbia-dx1536-cax10357.ogg -i audio_files/Handel_-_messiah_-_02_comfort_ye.ogg -i audio_files/Handel_-_messiah_-_44_hallelujah.ogg -i audio_files/NordwindSonne.wav -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" -acodec alac output.m4a
@@ -240,7 +260,7 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- >>> let audioFilesDirectory = (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
 -- >>> audioFilesDirectory
 -- .../audio_files...
--- >>> evalIO . makeM4bFromDir =<< audioFilesDirectory
+-- >>> evalIO . makeAudiobookFromDir Alac =<< audioFilesDirectory
 -- Running: CreateProcess
 -- ... { cmdspec = ShellCommand "ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav" -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" ...audio_files.m4a...
 -- ...
@@ -257,13 +277,13 @@ evalIO = evalHS . view
            if dirs /= []
              then (logError . mconcat $ ["non-empty list of directories found in directory: ", show fp, " directories: ", show dirs]) >> evalIO (is files)
              else evalIO (is files)))
-      MakeM4a infiles outfile :>>= is -> Path.IO.withSystemTempDir "AudiobookTempDir" (\tempDir -> do
+      MakeM4a codec infiles outfile :>>= is -> Path.IO.withSystemTempDir "AudiobookTempDir" (\tempDir -> do
         outFileM4aExists <- Path.IO.doesFileExist outfile
         Data.Bool.bool
               (do
                 -- create the alac file in the temporary directory
                 let tempOutfilename = tempDir </> (Path.filename outfile)
-                ffmpegCreateProcess <- ffmpegConcatCommand infiles tempOutfilename
+                ffmpegCreateProcess <- ffmpegConcatCommand codec infiles tempOutfilename
                 executedFfmpegConcat <- readCreateProcessWithExitCode ffmpegCreateProcess ""
                 Data.Bool.bool
                   (logError ("MakeM4a failed, executedFfmpegConcat: " ++ (show executedFfmpegConcat)) >> evalIO (is False))
@@ -280,16 +300,19 @@ evalIO = evalHS . view
                   (processSuccess executedFfmpegConcat))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
-      RenameFile p1 p2 :>>= is -> do
-        p2Exists <- Path.IO.doesFileExist p2
+      RenameFile p1 p2 :>>= is ->
         Data.Bool.bool
-          (System.IO.Error.catchIOError
-            (Path.IO.renameFile p1 p2
-              >> evalIO (is True))
-            (\e -> (logError .  show $ e)
-              >> evalIO (is False)))
-          (evalIO (is False))
-          p2Exists
+          (Data.Bool.bool
+              (System.IO.Error.catchIOError
+                (Path.IO.renameFile p1 p2
+                  >> evalIO (is True))
+                (\e -> (logError .  show $ e)
+                  >> evalIO (is False)))
+              ((logError . mconcat $ ["RenameFile failed, destination file already exists. source: ", show p1, " destination: ", show p2])
+                >> evalIO (is False))
+              =<< Path.IO.doesFileExist p2)
+          (evalIO (is True)) -- if p1 == p2, then we don't need to rename, just noop
+          (p1 == p2)
       CopyFile p1 p2 :>>= is -> do
         p2Exists <- Path.IO.doesFileExist p2
         Data.Bool.bool
