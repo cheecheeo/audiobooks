@@ -56,6 +56,7 @@ common warnings
 
 library
     exposed-modules:     Audiobook
+                         , Bible
     hs-source-dirs:      src
     build-depends:       base ^>=4.18.2.1
                          , exceptions
