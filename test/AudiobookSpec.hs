@@ -16,6 +16,7 @@ import qualified System.Process
 import Test.QuickCheck (Arbitrary)
 import qualified Text.Pretty.Simple
 import qualified Test.QuickCheck
+import Text.Regex.TDFA ((=~))
 
 import Audiobook
 
@@ -102,6 +103,9 @@ spec = do
           (makeM4a Alac infiles outFile)
 
   describe "ffmpegConcatCommand" $ do
+    let commonFfmpegConcatCommandRegex = "ffmpeg -i \".*/audio_files/Columbia-dx1536-cax10357\\.ogg\" -i \".*/audio_files/NordwindSonne\\.wav\" -i \".*/audio_files/Handel_-_messiah_-_02_comfort_ye\\.ogg\" -i \".*/audio_files/Handel_-_messiah_-_44_hallelujah\\.ogg\" -filter_complex \"\\[0:0\\]\\[1:0\\]\\[2:0\\]\\[3:0\\]concat=n=4:v=0:a=1\\[outa\\]\" -map \"\\[outa\\]\" -acodec "
+    let ffmpegConcatCommandRegexAlac = commonFfmpegConcatCommandRegex ++ "alac \"/foo/bar/out\\.m4a\""
+    let ffmpegConcatCommandRegexFlac = commonFfmpegConcatCommandRegex ++ "flac \"/foo/bar/out\\.flac\""
     it "will create a process that creates an alac file for one file" $ do
       audioFile <- Path.parseAbsFile "/foo/bar/baz.ogg"
       outFile <- Path.parseAbsFile "/foo/bar/fee.m4a"
@@ -118,7 +122,11 @@ spec = do
       (_subdirs, audioFiles) <- Path.IO.listDir audioFilesDirectory
       maybe
         (expectationFailure "empty audioFiles")
-        (\fs -> ffmpegConcatCommand Alac fs outFile `shouldReturn` CreateProcess {cmdspec = ShellCommand "ffmpeg -i \"/home/chee1/packages/audiobooks/audio_files/Columbia-dx1536-cax10357.ogg\" -i \"/home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav\" -i \"/home/chee1/packages/audiobooks/audio_files/Handel_-_messiah_-_02_comfort_ye.ogg\" -i \"/home/chee1/packages/audiobooks/audio_files/Handel_-_messiah_-_44_hallelujah.ogg\" -filter_complex \"[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]\" -map \"[outa]\" -acodec alac \"/foo/bar/out.m4a\"", cwd = Nothing, env = Nothing, std_in = Inherit, std_out = Inherit, std_err = Inherit, close_fds = False, create_group = False, delegate_ctlc = False, detach_console = False, create_new_console = False, new_session = False, child_group = Nothing, child_user = Nothing, use_process_jobs = False})
+        (\fs -> do
+          ffmpegConcatProcess <- ffmpegConcatCommand Alac fs outFile
+          case cmdspec ffmpegConcatProcess of
+            ShellCommand s -> s =~ ffmpegConcatCommandRegexAlac `shouldBe` True
+            _ -> expectationFailure "ffmpegConcatCommand did not return a ShellCommand")
         (Data.List.NonEmpty.nonEmpty audioFiles)
     it "will create a process that creates a flac file for audio_files" $ do
       outFile <- Path.parseAbsFile "/foo/bar/out.flac"
@@ -126,7 +134,11 @@ spec = do
       (_subdirs, audioFiles) <- Path.IO.listDir audioFilesDirectory
       maybe
         (expectationFailure "empty audioFiles")
-        (\fs -> ffmpegConcatCommand Flac fs outFile `shouldReturn` CreateProcess {cmdspec = ShellCommand "ffmpeg -i \"/home/chee1/packages/audiobooks/audio_files/Columbia-dx1536-cax10357.ogg\" -i \"/home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav\" -i \"/home/chee1/packages/audiobooks/audio_files/Handel_-_messiah_-_02_comfort_ye.ogg\" -i \"/home/chee1/packages/audiobooks/audio_files/Handel_-_messiah_-_44_hallelujah.ogg\" -filter_complex \"[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]\" -map \"[outa]\" -acodec flac \"/foo/bar/out.flac\"", cwd = Nothing, env = Nothing, std_in = Inherit, std_out = Inherit, std_err = Inherit, close_fds = False, create_group = False, delegate_ctlc = False, detach_console = False, create_new_console = False, new_session = False, child_group = Nothing, child_user = Nothing, use_process_jobs = False})
+        (\fs -> do
+          ffmpegConcatProcess <- ffmpegConcatCommand Flac fs outFile
+          case cmdspec ffmpegConcatProcess of
+            ShellCommand s -> s =~ ffmpegConcatCommandRegexFlac `shouldBe` True
+            _ -> expectationFailure "ffmpegConcatCommand did not return a ShellCommand")
         (Data.List.NonEmpty.nonEmpty audioFiles)
 
   describe "andThenProcess" $ do

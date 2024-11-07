@@ -119,6 +119,7 @@ test-suite spec
       path-io,
       pretty-simple
       , process
+      , regex-tdfa
       , text
       , audiobooks,
     other-modules: AudiobookSpec
