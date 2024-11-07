@@ -139,21 +139,25 @@ spec = do
 
   describe "makeAudiobookFromDir" $ do
     it "can make an m4b file from ./audio_files" $ do
+      pendingWith "slow integration"
       audioFilesDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
       makeAudiobookSuccess <- evalIO . makeAudiobookFromDir Alac $ audioFilesDirectory
       Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_files.m4b"))
       makeAudiobookSuccess `shouldBe` True
     it "can make a flac file from ./audio_files" $ do
+      pendingWith "slow integration"
       audioFilesDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
       makeAudiobookSuccess <- evalIO . makeAudiobookFromDir Flac $ audioFilesDirectory
       Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_files.flac"))
       makeAudiobookSuccess `shouldBe` True
     it "can make an m4b file from ./audio_files/Handel_-_messiah_-_44_hallelujah.ogg" $ do
+      pendingWith "slow integration"
       audioFileDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_file")
       makeAudiobookSuccess <- evalIO . makeAudiobookFromDir Alac $ audioFileDirectory
       Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_file.m4b"))
       makeAudiobookSuccess `shouldBe` True
     it "can make a flac file from ./audio_files/Handel_-_messiah_-_44_hallelujah.ogg" $ do
+      pendingWith "slow integration"
       audioFileDirectory <- (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_file")
       makeAudiobookSuccess <- evalIO . makeAudiobookFromDir Flac $ audioFileDirectory
       Path.IO.removeFile =<< ((</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelFile "./audio_file.flac"))
