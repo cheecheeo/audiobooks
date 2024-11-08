@@ -260,7 +260,9 @@ logError = System.IO.hPutStrLn System.IO.stderr
 -- >>> let audioFilesDirectory = (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
 -- >>> audioFilesDirectory
 -- .../audio_files...
--- >>> evalIO . makeAudiobookFromDir Alac =<< audioFilesDirectory
+--
+-- slow integration:
+-- >> evalIO . makeAudiobookFromDir Alac =<< audioFilesDirectory
 -- Running: CreateProcess
 -- ... { cmdspec = ShellCommand "ffmpeg -i ...Columbia-dx1536-cax10357.ogg...Handel_-_messiah_-_02_comfort_ye.ogg...Handel_-_messiah_-_44_hallelujah.ogg...home/chee1/packages/audiobooks/audio_files/NordwindSonne.wav" -filter_complex "[0:0][1:0][2:0][3:0]concat=n=4:v=0:a=1[outa]" -map "[outa]" ...audio_files.m4a...
 -- ...

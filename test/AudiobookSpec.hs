@@ -4,6 +4,7 @@ module AudiobookSpec where
 import Control.Monad.Operational
   (ProgramViewT(Return, (:>>=)))
 import qualified Control.Monad.Operational
+import qualified Data.Bool
 import qualified Data.Either
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty
@@ -41,6 +42,19 @@ instance Arbitrary FileString where
       p3 <- parts
       ext <- exts
       return . FileString . mconcat $ ["/" , p1, "/", p2, "/", p3, ".", ext]
+
+-- | Like shouldBe, but for regex. failure output could be improved -- show the part where they stopped matching
+-- >>> "foo" `shouldMatch` "bar"
+-- *** Exception: HUnitFailure (Just (SrcLoc {srcLocPackage = "main", srcLocModule = "AudiobookSpec", srcLocFile = "test/AudiobookSpec.hs", srcLocStartLine = ..., srcLocStartCol = 6, srcLocEndLine = ..., srcLocEndCol = 24})) (Reason "string \"foo\" did not match regex \"bar\"")
+-- >>> "foo" `shouldMatch` "foo"
+-- >>> "foo" `shouldMatch` "f.*"
+-- >>> "good" `shouldMatch` "g..d"
+shouldMatch :: String -> String -> Expectation
+shouldMatch string regex =
+  Data.Bool.bool
+    (expectationFailure $ "string: " ++ show string ++ " did not match regex: " ++ show regex)
+    (pure ())
+    (string =~ regex)
 
 spec :: Spec
 spec = do
@@ -125,7 +139,7 @@ spec = do
         (\fs -> do
           ffmpegConcatProcess <- ffmpegConcatCommand Alac fs outFile
           case cmdspec ffmpegConcatProcess of
-            ShellCommand s -> s =~ ffmpegConcatCommandRegexAlac `shouldBe` True
+            ShellCommand s -> s `shouldMatch` ffmpegConcatCommandRegexAlac
             _ -> expectationFailure "ffmpegConcatCommand did not return a ShellCommand")
         (Data.List.NonEmpty.nonEmpty audioFiles)
     it "will create a process that creates a flac file for audio_files" $ do
@@ -137,7 +151,7 @@ spec = do
         (\fs -> do
           ffmpegConcatProcess <- ffmpegConcatCommand Flac fs outFile
           case cmdspec ffmpegConcatProcess of
-            ShellCommand s -> s =~ ffmpegConcatCommandRegexFlac `shouldBe` True
+            ShellCommand s -> s `shouldMatch` ffmpegConcatCommandRegexFlac
             _ -> expectationFailure "ffmpegConcatCommand did not return a ShellCommand")
         (Data.List.NonEmpty.nonEmpty audioFiles)
 
