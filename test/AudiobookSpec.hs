@@ -45,7 +45,7 @@ instance Arbitrary FileString where
 
 -- | Like shouldBe, but for regex. failure output could be improved -- show the part where they stopped matching
 -- >>> "foo" `shouldMatch` "bar"
--- *** Exception: HUnitFailure (Just (SrcLoc {srcLocPackage = "main", srcLocModule = "AudiobookSpec", srcLocFile = "test/AudiobookSpec.hs", srcLocStartLine = ..., srcLocStartCol = 6, srcLocEndLine = ..., srcLocEndCol = 24})) (Reason "string \"foo\" did not match regex \"bar\"")
+-- *** Exception: HUnitFailure (Just (SrcLoc {srcLocPackage = "main", srcLocModule = "AudiobookSpec", srcLocFile = "test/AudiobookSpec.hs", srcLocStartLine = ..., srcLocStartCol = 6, srcLocEndLine = ..., srcLocEndCol = 24})) (Reason "string: \"foo\" did not match regex: \"bar\"")
 -- >>> "foo" `shouldMatch` "foo"
 -- >>> "foo" `shouldMatch` "f.*"
 -- >>> "good" `shouldMatch` "g..d"

@@ -1,4 +1,5 @@
-cabal-version:      3.0
+cabal-version:   3.0
+
 -- The cabal-version field refers to the version of the .cabal specification,
 -- and can be different from the cabal-install (the tool) version and the
 -- Cabal (the library) version you are using. As such, the Cabal (the library)
@@ -11,16 +12,10 @@ cabal-version:      3.0
 --   http://haskell.org/cabal/users-guide/
 --
 -- The name of the package.
-name:               audiobooks
+name:            audiobooks
 
 -- The package version.
--- See the Haskell package versioning policy (PVP) for standards
--- guiding when and how versions should be incremented.
--- https://pvp.haskell.org
--- PVP summary:     +-+------- breaking API changes
---                  | | +----- non-breaking API additions
---                  | | | +--- code changes with no API change
-version:            0.1.0.0
+version:         0.1.0.0
 
 -- A short (one-line) description of the package.
 -- synopsis:
@@ -29,99 +24,104 @@ version:            0.1.0.0
 -- description:
 
 -- The license under which the package is released.
-license:            GPL-2.0-or-later
+license:         GPL-2.0-or-later
 
 -- The file containing the license text.
-license-file:       LICENSE
+license-file:    LICENSE
 
 -- The package author(s).
-author:             John Chee
+author:          John Chee
 
 -- An email address to which users can send suggestions, bug reports, and patches.
-maintainer:         johnanchee@gmail.com
+maintainer:      johnanchee@gmail.com
 
 -- A copyright notice.
 -- copyright:
-category:           Sound
-build-type:         Simple
+category:        Sound
+build-type:      Simple
 
 -- Extra doc files to be distributed with the package, such as a CHANGELOG or a README.
-extra-doc-files:    CHANGELOG.md
+extra-doc-files: CHANGELOG.md
 
 -- Extra source files to be distributed with the package, such as examples, or a tutorial module.
 -- extra-source-files:
 
 common warnings
-    ghc-options: -Wall
+  ghc-options: -Wall
 
 library
-    exposed-modules:     Audiobook
-                         , Bible
-    hs-source-dirs:      src
-    build-depends:       base ^>=4.18.2.1
-                         , exceptions
-                         , filepath
-                         , path
-                         , path-io
-                         , pretty-simple
-                         , process
-                         , operational
-                         , text
-    default-language:    Haskell2010
+  exposed-modules:
+    Audiobook
+    Bible
+
+  hs-source-dirs:   src
+  build-depends:
+    , base           ^>=4.18.2.1
+    , exceptions
+    , filepath
+    , operational
+    , path
+    , path-io
+    , pretty-simple
+    , process
+    , text
+
+  default-language: Haskell2010
 
 executable audiobooks
-    -- Import common warning flags.
-    import:           warnings
+  -- Import common warning flags.
+  import:           warnings
 
-    -- .hs or .lhs file containing the Main module.
-    main-is:          Main.hs
+  -- .hs or .lhs file containing the Main module.
+  main-is:          Main.hs
 
-    -- Modules included in this executable, other than Main.
-    -- other-modules:
+  -- Modules included in this executable, other than Main.
+  -- other-modules:
 
-    -- LANGUAGE extensions used by modules in this package.
-    -- other-extensions:
+  -- LANGUAGE extensions used by modules in this package.
+  -- other-extensions:
 
-    -- Other library packages from which modules are imported.
-    build-depends:
-        audiobooks,
-        base,
-        http-conduit,
-        bytestring,
-        operational,
-        path,
-        path-io,
-        process,
-        exceptions,
-        doctest,
-        filepath,
-    -- build-depends:    base ^>=4.17.2.1, http-conduit, bytestring
+  -- Other library packages from which modules are imported.
+  build-depends:
+    , audiobooks
+    , base
+    , bytestring
+    , doctest
+    , exceptions
+    , filepath
+    , http-conduit
+    , operational
+    , path
+    , path-io
+    , process
 
-    -- Directories containing source files.
-    hs-source-dirs:   app
+  -- build-depends:    base ^>=4.17.2.1, http-conduit, bytestring
 
-    -- Base language which the package is written in.
-    default-language: Haskell2010
+  -- Directories containing source files.
+  hs-source-dirs:   app
+
+  -- Base language which the package is written in.
+  default-language: Haskell2010
 
 test-suite spec
-    type: exitcode-stdio-1.0
-    main-is: Spec.hs
-    hs-source-dirs:
-      test
-    build-depends:
-      base,
-      hspec,
-      hspec-contrib,
-      QuickCheck,
-      HUnit,
-      operational,
-      path,
-      path-io,
-      pretty-simple
-      , process
-      , regex-tdfa
-      , text
-      , audiobooks,
-    other-modules: AudiobookSpec
-    default-language: Haskell2010
-    build-tool-depends: hspec-discover:hspec-discover == 2.*
+  type:               exitcode-stdio-1.0
+  main-is:            Spec.hs
+  hs-source-dirs:     test
+  build-depends:
+    , audiobooks
+    , base
+    , hspec
+    , hspec-contrib
+    , HUnit
+    , operational
+    , path
+    , path-io
+    , pretty-simple
+    , process
+    , QuickCheck
+    , regex-tdfa
+    , text
+
+  other-modules:      AudiobookSpec
+  default-language:   Haskell2010
+  build-tool-depends: hspec-discover:hspec-discover >=2 && <3
