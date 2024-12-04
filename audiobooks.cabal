@@ -50,9 +50,13 @@ common warnings
   ghc-options: -Wall
 
 library
+
   exposed-modules:
     Audiobook
     Bible
+
+  other-modules:
+    Chapter
 
   hs-source-dirs:   src
   build-depends:

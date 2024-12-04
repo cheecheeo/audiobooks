@@ -31,6 +31,8 @@ import Control.Monad.Operational
       ProgramView,
       ProgramViewT(Return, (:>>=)) )
 
+import qualified Chapter
+
 data Codec = Alac | Flac
 
 type AudiobookP a = Program AudiobookI a
@@ -39,6 +41,7 @@ data AudiobookI a where
   -- MakeM4bFromDir :: Path absOrRel File -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
   -- TODO rename to MakeAudiobook
   MakeM4a :: Codec -> NonEmpty (Path Abs File) -> Path Abs File -> AudiobookI Bool -- explicitly a list of input files and output file, success or no?
+  MakeChapterFile :: Path absOrRel File -> AudiobookI Chapter.File
   ListFiles :: Path absOrRel Dir -> AudiobookI [Path Abs File] -- list all the files in a directory
   -- The distinction between these two operations may not be relevant, it might be worthwhile
   -- to just use CopyFile only, see "Rename discussion" in the MakeM4a case of evalIO
@@ -302,6 +305,9 @@ evalIO = evalHS . view
                   (processSuccess executedFfmpegConcat))
           (logError ("file already exists. outfile: " ++ (show outfile)) >> evalIO (is False))
           outFileM4aExists)
+      MakeChapterFile fp :>>= is -> do undefined
+        -- ffmpeg command to get the duration, if it succeeds, then create the chapter file
+
       RenameFile p1 p2 :>>= is ->
         Data.Bool.bool
           (Data.Bool.bool
@@ -332,6 +338,67 @@ generateShell :: AudiobookP a -> (() -> (a, String))
 generateShell = undefined
 
 -- TODO:
+--
+-- https://www.perplexity.ai/search/does-flac-support-chapter-mark-VmvkfCE4QQ2NTaux4aZFpw#4
+--
+-- flac chapter file format
+{-
+;FFMETADATA1
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=0
+END=180000
+title=Introduction
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=180000
+END=360000
+title=Main Topic
+
+[CHAPTER]
+TIMEBASE=1/1000
+START=360000
+END=540000
+title=Conclusion
+
+#!/bin/bash
+
+echo ";FFMETADATA1" > chapters.txt
+start=0
+
+for file in input*.flac; do
+  duration=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$file")
+  duration=${duration%.*}  # Remove decimal part
+  end=$((start + duration))
+
+  echo "[CHAPTER]" >> chapters.txt
+  echo "TIMEBASE=1/1" >> chapters.txt
+  echo "START=$start" >> chapters.txt
+  echo "END=$end" >> chapters.txt
+  echo "title=${file%.*}" >> chapters.txt
+  echo "" >> chapters.txt
+
+  start=$end
+done
+
+ffmpeg -i input.flac -i chapters.txt -map_metadata 1 -c copy output.flac
+-}
+--
+-- name, branding: resonantlegacies
+--
+-- ffprobe -v quiet -print_format json -show_format foo.flac
+-- chapter lengths
+--
+-- URL -> flac -> vlc playing the flac function for reading articles. microsoft edge TTS use case
+--
+-- https://hylang.org/ for calling python code
+--
+-- build your library - estimate what percentage of your life it will take to consume all the content
+-- integrate with poly-whatever rating system or goodreads
+--
+-- impelement "shouldMatch" like shouldBe but for regex, better error output than current thing
 --
 -- see if i can get chapters or whatever in ffmpegConcatCommand
 --

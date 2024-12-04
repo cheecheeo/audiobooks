@@ -11,4 +11,4 @@ main :: IO ()
 main = do
     putStrLn "hello from Main.main"
     -- let audioFilesDirectory = (</>) <$> Path.IO.getCurrentDir <*> (Path.parseRelDir "./audio_files")
-    -- Control.Monad.void . evalIO . makeM4bFromDir =<< audioFilesDirectory
+    -- Control.Monad.void . evalIO . makeAudiobookFromDir Flac =<< audioFilesDirectory

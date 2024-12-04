@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 module Chapter where
 
 import Data.Text (Text)
@@ -13,6 +14,16 @@ data File = File {
   filename :: !Text,
   duration :: !Int
 }
+
+ushow = undefined
+
+-- TODO: test this ffprobe command out to see if it even works
+-- TODO refactor ushow into it's own printing module, in this module switch over to Text instead of String, but ushow should provide both
+-- does flac/ffmpeg support subchapters
+-- no - use whitespace or something in chatper headings
+ffmpegDurationCommand :: File -> Text
+ffmpegDurationCommand fp =
+  mconcat ["ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 ", ushow filename]
 
 chaptersData :: [Chapter] -> Text
 chaptersData = undefined
