@@ -1,0 +1,2 @@
+docker pull ghcr.io/p0n1/epub_to_audiobook:latest
+docker run -i -t --rm -v ./:/app -e OPENAI_API_KEY=$OPENAI_API_KEY ghcr.io/p0n1/epub_to_audiobook go.epub audiobook_output3 --tts edge --voice_name "en-AU-NatashaNeural"
